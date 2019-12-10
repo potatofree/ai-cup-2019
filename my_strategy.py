@@ -1,6 +1,7 @@
 import model
 import math
 
+
 class MyStrategy:
     def __init__(self):
         pass
@@ -9,8 +10,12 @@ class MyStrategy:
         # Replace this code with your own
         def distance_sqr(a, b):
             return (a.x - b.x) ** 2 + (a.y - b.y) ** 2
+        def is_on_my_side(box, unit, enemy_unit):
+            if (box.position.x - unit.position.x)*(enemy_unit.position.x - unit.position.x) < 0:
+                return True
+            else:
+                return False
         nearest_enemy = min(
-            # [u for u in game.units if u.player_id != ...]
             filter(lambda u: u.player_id != unit.player_id, game.units),
             key=lambda u: distance_sqr(u.position, unit.position),
             default=None)
@@ -31,33 +36,34 @@ class MyStrategy:
                 box.item, model.Item.HealthPack), game.loot_boxes),
             key=lambda box: distance_sqr(box.position, unit.position),
             default=None)
+        nearest_healthpack_onmyside = min(
+            filter(lambda box: isinstance(
+                box.item, model.Item.HealthPack) and is_on_my_side(box, unit, nearest_enemy), game.loot_boxes),
+            key=lambda box: distance_sqr(box.position, unit.position),
+            default=None)
         target_pos = unit.position
         if unit.weapon is not None:
             weapon_type = unit.weapon.typ
-            # if weapon_type == model.WeaponType.ASSAULT_RIFLE:
-            #     print('Ruzzho')
-            # elif weapon_type == model.WeaponType.PISTOL:
-            #     print('Pistik')
-            # elif weapon_type == model.WeaponType.ROCKET_LAUNCHER:
-            #     print('Bazuka')
-            # print(weapon_type)
         else:
-             weapon_type = ''
+            weapon_type = ''
         shoot = True
         swap_weapon = False
-        # Weapon
+        # Target
         if unit.weapon is None and nearest_weapon is not None:
             target_pos = nearest_weapon.position
         elif unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
-            shoot = False
-            target_pos = nearest_riffle.position
+            # shoot = False
+            # target_pos = nearest_riffle.position
+            target_pos = nearest_weapon.position
             swap_weapon = True
-        elif unit.weapon is not None and weapon_type == model.WeaponType.PISTOL:
-            target_pos = nearest_riffle.position
-            swap_weapon = True
-        elif unit.weapon is not None and weapon_type != model.WeaponType.ASSAULT_RIFLE and distance_sqr(unit.position, nearest_riffle.position) < 1:
-            swap_weapon = True
-            target_pos = nearest_enemy.position
+        # elif unit.weapon is not None and weapon_type == model.WeaponType.PISTOL:
+        #     target_pos = nearest_riffle.position
+        #     swap_weapon = True
+        # elif unit.weapon is not None and weapon_type != model.WeaponType.ASSAULT_RIFLE and distance_sqr(unit.position, nearest_riffle.position) < 1:
+        #     swap_weapon = True
+        #     target_pos = nearest_enemy.position
+        elif unit.health < 80 and nearest_healthpack_onmyside is not None:
+            target_pos = nearest_healthpack_onmyside.position
         elif unit.health < 80 and nearest_healthpack is not None:
             target_pos = nearest_healthpack.position
         elif nearest_enemy is not None:
@@ -70,14 +76,32 @@ class MyStrategy:
             aim = model.Vec2Double(
                 nearest_enemy.position.x - unit.position.x,
                 nearest_enemy.position.y - unit.position.y)
+        aim_c=unit.size.y / 2
+        debug.draw(model.CustomData.Line(model.Vec2Float(unit.position.x,aim_c + unit.position.y), model.Vec2Float(nearest_enemy.position.x, aim_c + nearest_enemy.position.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
+        delta_x = nearest_enemy.position.x - unit.position.x
+        delta_y = nearest_enemy.position.y - unit.position.y
+        if abs(delta_x) > 0.5:
+            k = delta_y / delta_x
+            step = math.copysign(1, delta_x)
+            for i in range(int(abs(delta_x))):
+                point_x = int(unit.position.x) + step*i
+                point_y = int(unit.position.y + k*step*i+aim_c)
+                color2 = 127
+                color1 = 0
+                if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
+                    shoot = False
+                    color2 = 0
+                    color1 = 127
+
+                debug.draw(model.CustomData.Rect(model.Vec2Float(point_x,point_y), model.Vec2Float(step, 1), model.ColorFloat(color1, color2, 0, 0.4)))
         # Jump
         jump = target_pos.y > unit.position.y
         if target_pos.x > unit.position.x and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
         if target_pos.x < unit.position.x and game.level.tiles[int(unit.position.x - 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
-        # if target_pos == nearest_enemy.position:
-        #     jump = True
+        # Shooting
+
         # velocity
         velocity = target_pos.x - unit.position.x
         if velocity < 0 and velocity > -10:
