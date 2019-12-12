@@ -69,7 +69,7 @@ class MyStrategy:
         elif nearest_enemy is not None:
             target_pos = nearest_enemy.position
         # debug
-        debug.draw(model.CustomData.Log("Target pos: {}".format(target_pos)))
+        # debug.draw(model.CustomData.Log("Target pos: {}".format(target_pos)))
         # Aim
         aim = model.Vec2Double(0, 0)
         if nearest_enemy is not None:
@@ -77,31 +77,34 @@ class MyStrategy:
                 nearest_enemy.position.x - unit.position.x,
                 nearest_enemy.position.y - unit.position.y)
         aim_c=unit.size.y / 2
-        debug.draw(model.CustomData.Line(model.Vec2Float(unit.position.x,aim_c + unit.position.y), model.Vec2Float(nearest_enemy.position.x, aim_c + nearest_enemy.position.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
+        # debug.draw(model.CustomData.Line(model.Vec2Float(unit.position.x,aim_c + unit.position.y), model.Vec2Float(nearest_enemy.position.x, aim_c + nearest_enemy.position.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
         delta_x = nearest_enemy.position.x - unit.position.x
-        delta_y = nearest_enemy.position.y - unit.position.y
+        delta_y = nearest_enemy.position.y - unit.position.y - aim_c
         if abs(delta_x) > 0.5:
             k = delta_y / delta_x
             step = math.copysign(1, delta_x)
             for i in range(int(abs(delta_x))):
                 point_x = int(unit.position.x) + step*i
                 point_y = int(unit.position.y + k*step*i+aim_c)
-                color2 = 127
-                color1 = 0
+                # color2 = 127
+                # color1 = 0
                 if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
                     shoot = False
-                    color2 = 0
-                    color1 = 127
+                    # color2 = 0
+                    # color1 = 127
 
-                debug.draw(model.CustomData.Rect(model.Vec2Float(point_x,point_y), model.Vec2Float(step, 1), model.ColorFloat(color1, color2, 0, 0.4)))
+                # debug.draw(model.CustomData.Rect(model.Vec2Float(point_x,point_y), model.Vec2Float(step, 1), model.ColorFloat(color1, color2, 0, 0.4)))
         # Jump
-        jump = target_pos.y > unit.position.y
+        jump = target_pos.y > (unit.position.y + 1)
         if target_pos.x > unit.position.x and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
         if target_pos.x < unit.position.x and game.level.tiles[int(unit.position.x - 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
         # Shooting
-
+        reload = False
+        if unit.weapon is not None and target_pos != nearest_enemy and not shoot and unit.weapon.magazine < unit.weapon.params.magazine_size:
+            reload = True
+            debug.draw(model.CustomData.Log(format(unit.weapon.params.reload_time)))
         # velocity
         velocity = target_pos.x - unit.position.x
         if velocity < 0 and velocity > -10:
