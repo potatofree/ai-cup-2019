@@ -96,10 +96,12 @@ class MyStrategy:
                 # debug.draw(model.CustomData.Rect(model.Vec2Float(point_x,point_y), model.Vec2Float(step, 1), model.ColorFloat(color1, color2, 0, 0.4)))
         # Jump
         jump = target_pos.y > (unit.position.y + 1)
-        if target_pos.x > unit.position.x and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
+        if abs(target_pos.x - unit.position.x)>0.001 and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
-        if target_pos.x < unit.position.x and game.level.tiles[int(unit.position.x - 1)][int(unit.position.y)] == model.Tile.WALL:
+            debug.draw(model.CustomData.Log("DeltaX = {}".format(target_pos.x - unit.position.x)))
+        if abs(target_pos.x - unit.position.x)>0.001 and game.level.tiles[int(unit.position.x - 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
+            debug.draw(model.CustomData.Log("DeltaX = {}".format(target_pos.x - unit.position.x)))
         # Shooting
         reload = False
         if unit.weapon is not None and target_pos != nearest_enemy and not shoot and unit.weapon.magazine < unit.weapon.params.magazine_size:
