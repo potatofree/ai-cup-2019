@@ -106,14 +106,14 @@ class MyStrategy:
             reload = True
             debug.draw(model.CustomData.Log(format(unit.weapon.params.reload_time)))
         # velocity
-        velocity = target_pos.x - unit.position.x
-        if velocity < 0 and velocity > -10:
-            velocity = -10
-        elif velocity > 0 and velocity < 10:
-            velocity = 10
-        if target_pos == nearest_enemy.position and abs(target_pos.x - unit.position.x)<2:
-            # velocity = 0.2
-            velocity = math.copysign(0.2, target_pos.x - unit.position.x)
+        velocity = (target_pos.x - unit.position.x) * game.properties.ticks_per_second
+        # if velocity < 0 and velocity > -10:
+        #     velocity = -10
+        # elif velocity > 0 and velocity < 10:
+        #     velocity = 10
+        # if target_pos == nearest_enemy.position and abs(target_pos.x - unit.position.x)<2:
+        #     # velocity = 0.2
+        #     velocity = math.copysign(0.2, target_pos.x - unit.position.x)
         return model.UnitAction(
             velocity=velocity,
             jump=jump,
