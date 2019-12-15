@@ -1,5 +1,6 @@
 import model
 import math
+from math import copysign
 
 
 class MyStrategy:
@@ -15,10 +16,26 @@ class MyStrategy:
                 return True
             else:
                 return False
+        def is_visible(a, b):
+            is_visible = True
+            delta_x = b.x - a.x
+            delta_y = b.y - a.y
+            k = delta_y / delta_x
+            step = math.copysign(1, delta_x)
+            for i in range(int(abs(delta_x))):
+                point_x = int(a.x) + step*i
+                point_y = int(a.y + k*step*i)
+                if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
+                    is_visible = False
+            return is_visible
         nearest_enemy = min(
             filter(lambda u: u.player_id != unit.player_id, game.units),
             key=lambda u: distance_sqr(u.position, unit.position),
             default=None)
+
+        delta_x = nearest_enemy.position.x - unit.position.x
+        delta_y = nearest_enemy.position.y - unit.position.y
+
         nearest_weapon = min(
             filter(lambda box: isinstance(
                 box.item, model.Item.Weapon), game.loot_boxes),
@@ -71,29 +88,70 @@ class MyStrategy:
         # debug
         # debug.draw(model.CustomData.Log("Target pos: {}".format(target_pos)))
         # Aim
+        # aim = model.Vec2Double(0, 0)
+        # if nearest_enemy is not None:
+        #     aim = model.Vec2Double(
+        #         nearest_enemy.position.x - unit.position.x,
+        #         nearest_enemy.position.y - unit.position.y)
+        # aim_c=unit.size.y / 2
+        # delta_x = nearest_enemy.position.x - unit.position.x
+        # delta_y = nearest_enemy.position.y - unit.position.y - aim_c
+        # if abs(delta_x) > 0.5:
+        #     k = delta_y / delta_x
+        #     step = math.copysign(1, delta_x)
+        #     for i in range(int(abs(delta_x))):
+        #         point_x = int(unit.position.x) + step*i
+        #         point_y = int(unit.position.y + k*step*i+aim_c)
+        #         # color2 = 127
+        #         # color1 = 0
+        #         if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
+        #             shoot = False
+        #             # color2 = 0
+        #             # color1 = 127
         aim = model.Vec2Double(0, 0)
-        if nearest_enemy is not None:
-            aim = model.Vec2Double(
-                nearest_enemy.position.x - unit.position.x,
-                nearest_enemy.position.y - unit.position.y)
         aim_c=unit.size.y / 2
-        # debug.draw(model.CustomData.Line(model.Vec2Float(unit.position.x,aim_c + unit.position.y), model.Vec2Float(nearest_enemy.position.x, aim_c + nearest_enemy.position.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
-        delta_x = nearest_enemy.position.x - unit.position.x
-        delta_y = nearest_enemy.position.y - unit.position.y - aim_c
+        shooting_point = model.Vec2Double(unit.position.x, unit.position.y + aim_c)
+        head = model.Vec2Double(0, 0)
+        legs = model.Vec2Double(0, 0)
+        body = model.Vec2Double(0, 0)
+        p = copysign(1, delta_x)
+        if nearest_enemy is not None:
+            aim = model.Vec2Double(nearest_enemy.position.x - unit.position.x,
+                                   nearest_enemy.position.y - unit.position.y)
+            head.x = nearest_enemy.position.x
+            head.y = nearest_enemy.position.y + unit.size.y
+            legs.x = head.x
+            legs.y = nearest_enemy.position.y
+            body.x = head.x
+            body.y = nearest_enemy.position.y + 0.5*unit.size.y
+            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(body.x, body.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
+            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(head.x, head.y), 0.02, model.ColorFloat(0, 255, 0, 1)))
+            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(legs.x, legs.y), 0.02, model.ColorFloat(0, 0, 255, 1)))
         if abs(delta_x) > 0.5:
-            k = delta_y / delta_x
-            step = math.copysign(1, delta_x)
-            for i in range(int(abs(delta_x))):
-                point_x = int(unit.position.x) + step*i
-                point_y = int(unit.position.y + k*step*i+aim_c)
-                # color2 = 127
-                # color1 = 0
-                if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
-                    shoot = False
-                    # color2 = 0
-                    # color1 = 127
+            shoot = is_visible(shooting_point, legs)
+            if unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
+                shoot = is_visible(shooting_point, legs) and is_visible(shooting_point, body) and is_visible(shooting_point, head)
+            if unit.weapon is not None and weapon_type != model.WeaponType.ROCKET_LAUNCHER:
+                # if is_visible(shooting_point, body):
+                #     shoot = True
+                #     aim.x = head.x - shooting_point.x
+                #     aim.y = head.y - shooting_point.y
+                if is_visible(shooting_point, legs):
+                    shoot = True
+                    aim.x = body.x - shooting_point.x
+                    aim.y = body.y - shooting_point.y
+        if shoot:
+            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(aim.x + shooting_point.x, aim.y + shooting_point.y), 0.3 , model.ColorFloat(255, 0, 255, 1)))
+            debug.draw(model.CustomData.Log('DeltaX {}'.format(delta_x)))
+            debug.draw(model.CustomData.Log('DeltaY {}'.format(delta_y)))
+        if unit.weapon is not None:
+            debug.draw(model.CustomData.Log('Magazine {}'.format(unit.weapon.magazine)))
+            debug.draw(model.CustomData.Log('Timer {}'.format(unit.weapon.fire_timer)))
 
-                # debug.draw(model.CustomData.Rect(model.Vec2Float(point_x,point_y), model.Vec2Float(step, 1), model.ColorFloat(color1, color2, 0, 0.4)))
+        if nearest_healthpack_onmyside is not None:
+            debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_healthpack_onmyside.position.x, nearest_healthpack_onmyside.position.y), model.Vec2Float(1, 1), model.ColorFloat(125, 0, 125, 0.4)))
+            debug.draw(model.CustomData.Rect(model.Vec2Float(target_pos.x, target_pos.y), model.Vec2Float(1, 1), model.ColorFloat(125, 125, 0, 0.4)))
+
         # Jump
         jump = target_pos.y > (unit.position.y + 1)
         if abs(target_pos.x - unit.position.x)>0.001 and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
