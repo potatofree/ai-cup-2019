@@ -11,7 +11,7 @@ class MyStrategy:
         def distance_sqr(a, b):
             return (a.x - b.x) ** 2 + (a.y - b.y) ** 2
         def is_on_my_side(box, unit, enemy_unit):
-            if (box.position.x - unit.position.x)*(enemy_unit.position.x - unit.position.x) < 0:
+            if (box.position.x - enemy_unit.position.x)*(unit.position.x - enemy_unit.position.x) > 0:
                 return True
             else:
                 return False
