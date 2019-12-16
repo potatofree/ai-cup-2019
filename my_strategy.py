@@ -1,6 +1,7 @@
 import model
 import math
 from math import copysign
+from model import Vec2Double
 
 
 class MyStrategy:
@@ -28,11 +29,28 @@ class MyStrategy:
                 if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
                     is_visible = False
             return is_visible
+        def friendly_fire(u1, u2, t):
+            friendly_fire = False
+            delta_x = t.x - u1.x
+            delta_y = t.y - u1.y
+            if abs(delta_x) > 0.01:
+                k = delta_y / delta_x
+                if u1.y + k*(u2.x-u1.x) > u2.y and u1.y + k*(u2.x-u1.x) < u2.y +1.8:
+                    # print (u2.y, (u1.y + k*(u2.x-u1.x)) , u2.y+1.8)
+                    friendly_fire = True
+            elif u1.y < u2.y < t.y or u1.y > u2.y > t.y:
+                friendly_fire = True
+            if delta_x > 0.7 and friendly_fire and (t.x - u1.x)*(t.x - u2.x) < 0:
+                friendly_fire = False
+            return friendly_fire
         nearest_enemy = min(
             filter(lambda u: u.player_id != unit.player_id, game.units),
             key=lambda u: distance_sqr(u.position, unit.position),
             default=None)
-
+        teammate = min(
+            filter(lambda u: u.player_id == unit.player_id and u.id != unit.id, game.units),
+            key=lambda u: distance_sqr(u.position, unit.position),
+            default=None)
         delta_x = nearest_enemy.position.x - unit.position.x
         delta_y = nearest_enemy.position.y - unit.position.y
 
@@ -151,7 +169,6 @@ class MyStrategy:
         if nearest_healthpack_onmyside is not None:
             debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_healthpack_onmyside.position.x, nearest_healthpack_onmyside.position.y), model.Vec2Float(1, 1), model.ColorFloat(125, 0, 125, 0.4)))
             debug.draw(model.CustomData.Rect(model.Vec2Float(target_pos.x, target_pos.y), model.Vec2Float(1, 1), model.ColorFloat(125, 125, 0, 0.4)))
-
         # Jump
         jump = target_pos.y > (unit.position.y + 1)
         if abs(target_pos.x - unit.position.x)>0.001 and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
@@ -167,6 +184,12 @@ class MyStrategy:
             debug.draw(model.CustomData.Log(format(unit.weapon.params.reload_time)))
         # velocity
         velocity = (target_pos.x - unit.position.x) * game.properties.ticks_per_second
+
+
+        target = Vec2Double(aim.x + shooting_point.x, aim.y + shooting_point.y)
+        if teammate is not None and friendly_fire(unit.position, teammate.position, target):
+            shoot = False
+            jump = True
         # if velocity < 0 and velocity > -10:
         #     velocity = -10
         # elif velocity > 0 and velocity < 10:
