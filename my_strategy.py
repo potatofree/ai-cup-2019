@@ -35,7 +35,7 @@ class MyStrategy:
             delta_y = t.y - u1.y
             if abs(delta_x) > 0.01:
                 k = delta_y / delta_x
-                if u1.y + k*(u2.x-u1.x) > u2.y and u1.y + k*(u2.x-u1.x) < u2.y +1.8:
+                if u1.y + k*(u2.x-u1.x) > u2.y and u1.y + k*(u2.x-u1.x) < u2.y +1.8 and abs(delta_x)>abs(t.x - u2.x):
                     # print (u2.y, (u1.y + k*(u2.x-u1.x)) , u2.y+1.8)
                     friendly_fire = True
             elif u1.y < u2.y < t.y or u1.y > u2.y > t.y:
@@ -43,6 +43,7 @@ class MyStrategy:
             if delta_x > 0.7 and friendly_fire and (t.x - u1.x)*(t.x - u2.x) < 0:
                 friendly_fire = False
             return friendly_fire
+
         nearest_enemy = min(
             filter(lambda u: u.player_id != unit.player_id, game.units),
             key=lambda u: distance_sqr(u.position, unit.position),
@@ -60,9 +61,9 @@ class MyStrategy:
             key=lambda box: distance_sqr(box.position, unit.position),
             default=None)
         # nearest Riffle
-        nearest_riffle = min(
+        nearest_nonrocket = min(
         filter(lambda box: isinstance(
-            box.item, model.Item.Weapon) and box.item.weapon_type == model.WeaponType.ASSAULT_RIFLE, game.loot_boxes),
+            box.item, model.Item.Weapon) and box.item.weapon_type != model.WeaponType.ROCKET_LAUNCHER, game.loot_boxes),
         key=lambda box: distance_sqr(box.position, unit.position),
         default=None)
         # nearest healthpack
@@ -183,13 +184,20 @@ class MyStrategy:
             reload = True
             debug.draw(model.CustomData.Log(format(unit.weapon.params.reload_time)))
         # velocity
-        velocity = (target_pos.x - unit.position.x) * game.properties.ticks_per_second
 
 
         target = Vec2Double(aim.x + shooting_point.x, aim.y + shooting_point.y)
-        if teammate is not None and friendly_fire(unit.position, teammate.position, target):
-            shoot = False
-            jump = True
+        if teammate is not None:
+            if friendly_fire(unit.position, teammate.position, target):
+                shoot = False
+                jump = True
+            if unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
+                # shoot = False
+                target_pos = nearest_nonrocket.position
+                if teammate.weapon is None:
+                    swap_weapon = False
+                    target_pos = nearest_enemy.position
+        velocity = (target_pos.x - unit.position.x) * game.properties.ticks_per_second
         # if velocity < 0 and velocity > -10:
         #     velocity = -10
         # elif velocity > 0 and velocity < 10:
