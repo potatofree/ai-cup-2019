@@ -1,7 +1,11 @@
 import model
 import math
-from math import copysign
+from math import copysign, floor
 from model import Vec2Double
+
+class Storage:
+    pass
+
 
 
 class MyStrategy:
@@ -12,23 +16,32 @@ class MyStrategy:
         # Replace this code with your own
         def distance_sqr(a, b):
             return (a.x - b.x) ** 2 + (a.y - b.y) ** 2
+
         def is_on_my_side(box, unit, enemy_unit):
             if (box.position.x - enemy_unit.position.x)*(unit.position.x - enemy_unit.position.x) > 0:
                 return True
             else:
                 return False
+
         def is_visible(a, b):
             is_visible = True
             delta_x = b.x - a.x
             delta_y = b.y - a.y
             k = delta_y / delta_x
-            step = math.copysign(1, delta_x)
-            for i in range(int(abs(delta_x))):
-                point_x = int(a.x) + step*i
-                point_y = int(a.y + k*step*i)
-                if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
+            M = 10
+            step = copysign(1/M, delta_x)
+            for i in range(int(floor(abs(delta_x))*M+1)):
+                # point_x = int(floor(a.x) + step*i)
+                # point_y = int(floor(a.y + k*step*i))
+                point_x = a.x + step*i
+                point_y = a.y + k*step*i
+                if game.level.tiles[int(floor(point_x))][int(floor(point_y))] == model.Tile.WALL:
                     is_visible = False
+                    debug.draw(model.CustomData.Rect(model.Vec2Float(point_x, point_y), model.Vec2Float(step, 1), model.ColorFloat(125, 0, 0, 0.4)))
+                else:
+                    debug.draw(model.CustomData.Rect(model.Vec2Float(point_x, point_y), model.Vec2Float(step, 1), model.ColorFloat(0, 125, 0, 0.4)))
             return is_visible
+
         def friendly_fire(u1, u2, t):
             friendly_fire = False
             delta_x = t.x - u1.x
@@ -88,16 +101,8 @@ class MyStrategy:
         if unit.weapon is None and nearest_weapon is not None:
             target_pos = nearest_weapon.position
         elif unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
-            # shoot = False
-            # target_pos = nearest_riffle.position
             target_pos = nearest_weapon.position
             swap_weapon = True
-        # elif unit.weapon is not None and weapon_type == model.WeaponType.PISTOL:
-        #     target_pos = nearest_riffle.position
-        #     swap_weapon = True
-        # elif unit.weapon is not None and weapon_type != model.WeaponType.ASSAULT_RIFLE and distance_sqr(unit.position, nearest_riffle.position) < 1:
-        #     swap_weapon = True
-        #     target_pos = nearest_enemy.position
         elif unit.health < 80 and nearest_healthpack_onmyside is not None:
             target_pos = nearest_healthpack_onmyside.position
         elif unit.health < 80 and nearest_healthpack is not None:
@@ -106,27 +111,8 @@ class MyStrategy:
             target_pos = nearest_enemy.position
         # debug
         # debug.draw(model.CustomData.Log("Target pos: {}".format(target_pos)))
+
         # Aim
-        # aim = model.Vec2Double(0, 0)
-        # if nearest_enemy is not None:
-        #     aim = model.Vec2Double(
-        #         nearest_enemy.position.x - unit.position.x,
-        #         nearest_enemy.position.y - unit.position.y)
-        # aim_c=unit.size.y / 2
-        # delta_x = nearest_enemy.position.x - unit.position.x
-        # delta_y = nearest_enemy.position.y - unit.position.y - aim_c
-        # if abs(delta_x) > 0.5:
-        #     k = delta_y / delta_x
-        #     step = math.copysign(1, delta_x)
-        #     for i in range(int(abs(delta_x))):
-        #         point_x = int(unit.position.x) + step*i
-        #         point_y = int(unit.position.y + k*step*i+aim_c)
-        #         # color2 = 127
-        #         # color1 = 0
-        #         if game.level.tiles[int(point_x)][int(point_y)] == model.Tile.WALL:
-        #             shoot = False
-        #             # color2 = 0
-        #             # color1 = 127
         aim = model.Vec2Double(0, 0)
         aim_c=unit.size.y / 2
         shooting_point = model.Vec2Double(unit.position.x, unit.position.y + aim_c)
@@ -151,10 +137,10 @@ class MyStrategy:
             if unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
                 shoot = is_visible(shooting_point, legs) and is_visible(shooting_point, body) and is_visible(shooting_point, head)
             if unit.weapon is not None and weapon_type != model.WeaponType.ROCKET_LAUNCHER:
-                # if is_visible(shooting_point, body):
-                #     shoot = True
-                #     aim.x = head.x - shooting_point.x
-                #     aim.y = head.y - shooting_point.y
+                if is_visible(shooting_point, body):
+                    shoot = True
+                    aim.x = head.x - shooting_point.x
+                    aim.y = head.y - shooting_point.y
                 if is_visible(shooting_point, legs):
                     shoot = True
                     aim.x = body.x - shooting_point.x
@@ -197,14 +183,9 @@ class MyStrategy:
                 if teammate.weapon is None:
                     swap_weapon = False
                     target_pos = nearest_enemy.position
+
         velocity = (target_pos.x - unit.position.x) * game.properties.ticks_per_second
-        # if velocity < 0 and velocity > -10:
-        #     velocity = -10
-        # elif velocity > 0 and velocity < 10:
-        #     velocity = 10
-        # if target_pos == nearest_enemy.position and abs(target_pos.x - unit.position.x)<2:
-        #     # velocity = 0.2
-        #     velocity = math.copysign(0.2, target_pos.x - unit.position.x)
+
         return model.UnitAction(
             velocity=velocity,
             jump=jump,
