@@ -81,6 +81,40 @@ class MyStrategy:
             Storage.enemy[id].append((Vec2Double(enemy.position.x, enemy.position.y), enemy.jump_state))
             pass
 
+        def target_enemy_pos(unit, enemy):
+            target_enemy_pos = Vec2Double(enemy.x, enemy.y)
+            target = False
+            enemy_pos = target_enemy_pos
+            unit_pos = Vec2Double(unit.x, unit.y)
+            max_x = len(game.level.tiles)
+            max_y = len(game.level.tiles[0])
+            # enemy_pos.y = enemy_pos.y + 0.9
+            point = Vec2Double(0, 0)
+            tile = Vec2Double(0, 0)
+            nearest_pos = enemy_pos
+            dist = distance_sqr(unit_pos, enemy_pos)
+            for a in range(3,-1,-1):
+                for b in range(2*a,-1,-1):
+                    for sign in (((1,-1),(-1, 0)),((-1, 0),(1, -1)),((1, 0), (1, -1)),((1, -1),(1, 0))):
+                        tile.x = enemy_pos.x + a*sign[0][0] + b*sign[0][1]
+                        tile.y = enemy_pos.y + a*sign[1][0] + b*sign[1][1]
+                        if 1 > tile.x or tile.x > max_x-1: continue
+                        if 1 > tile.y or tile.y > max_y-1: continue
+                        point.x = tile.x + 0.5
+                        point.y = tile.y + 0.5
+                        if is_visible(point, enemy_pos):
+                            debug.draw(model.CustomData.Rect(model.Vec2Float(tile.x, tile.y), model.Vec2Float(1, 1), model.ColorFloat(0, 150, 0, 0.3)))
+                            if distance_sqr(unit_pos, point) < dist:
+                                target = True
+                                dist = distance_sqr(unit_pos, point)
+                                nearest_pos = Vec2Double(point.x, point.y)
+                        else:
+                            debug.draw(model.CustomData.Rect(model.Vec2Float(tile.x, tile.y), model.Vec2Float(1, 1), model.ColorFloat(150, 0, 0, 0.3)))
+                if target: break
+
+            debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_pos.x, nearest_pos.y), model.Vec2Float(1, 1), model.ColorFloat(250, 150, 100, 0.9)))
+            return nearest_pos
+
         enemies = [e for e in game.units if e.player_id != unit.player_id]
         nearest_enemy = min(
             filter(lambda u: u.player_id != unit.player_id, game.units),
@@ -177,6 +211,7 @@ class MyStrategy:
                     target_pos = nearest_healthpack.position
                 elif nearest_enemy is not None:
                     target_pos = nearest_enemy.position
+                    # target_pos = target_enemy_pos(unit.position, nearest_enemy.position)
         else:
             if unit.weapon is None and nearest_weapon is not None:
                 target_pos = nearest_weapon.position
