@@ -42,7 +42,7 @@ class MyStrategy:
                     is_visible = False
                     # debug.draw(model.CustomData.Rect(model.Vec2Float(point_x, point_y), model.Vec2Float(step, 1), model.ColorFloat(125, 0, 0, 0.4)))
                 # else:
-                    # debug.draw(model.CustomData.Rect(model.Vec2Float(point_x, point_y), model.Vec2Float(step, 1), model.ColorFloat(0, 125, 0, 0.4)))
+                    # debug.(model.CustomData.Rect(model.Vec2Float(point_x, point_y), model.Vec2Float(step, 1), model.ColorFloat(0, 125, 0, 0.4)))
             return is_visible
 
         def friendly_fire(u1, u2, aim):
@@ -52,8 +52,9 @@ class MyStrategy:
             delta_y = t.y - u1.y
             if abs(delta_x) > 0.01:
                 k = delta_y / delta_x
-                if u1.y + k*(u2.x-u1.x) > u2.y and u1.y + k*(u2.x-u1.x) < u2.y +1.8 and abs(delta_x)>abs(t.x - u2.x):
-                    # print (u2.y, (u1.y + k*(u2.x-u1.x)) , u2.y+1.8)
+                if u1.y + k*(u2.x-u1.x-0.4) > u2.y and u1.y + k*(u2.x-u1.x-0.4) < u2.y +1.8 and abs(delta_x)>abs(t.x - u2.x):
+                    friendly_fire = True
+                if u1.y + k*(u2.x-u1.x+0.4) > u2.y and u1.y + k*(u2.x-u1.x+0.4) < u2.y +1.8 and abs(delta_x)>abs(t.x - u2.x):
                     friendly_fire = True
             elif u1.y < u2.y < t.y or u1.y > u2.y > t.y:
                 friendly_fire = True
@@ -81,6 +82,55 @@ class MyStrategy:
             Storage.enemy[id].append((Vec2Double(enemy.position.x, enemy.position.y), enemy.jump_state))
             pass
 
+        def bullet_predict(bullet, mticks):
+            # mticks = ticks * game.properties.updates_per_tick
+            bullet_predict = Vec2Double(bullet.position.x, bullet.position.y)
+            speed_h = (bullet.velocity.x / game.properties.ticks_per_second) / game.properties.updates_per_tick
+            speed_v = (bullet.velocity.y / game.properties.ticks_per_second) / game.properties.updates_per_tick
+            bullet_predict.x = bullet.position.x + speed_h * mticks
+            bullet_predict.y = bullet.position.y + speed_v * mticks
+            return bullet_predict
+
+        def is_bullet_in_unit (bullet, bullet_pos, unit_pos):
+            is_bullet_in_unit = False
+            bullet_x = list()
+            bullet_y = list()
+            unit_x = list()
+            unit_y = list()
+            for i in (-1, 1):
+                bullet_x.append(bullet_pos.x + i * 0.5*bullet.size)
+                bullet_y.append(bullet_pos.y + i * 0.5*bullet.size)
+                unit_x.append(unit_pos.x + i * 0.5*game.properties.unit_size.x)
+            unit_y.append(unit_pos.y)
+            unit_y.append(unit_pos.y + game.properties.unit_size.y)
+            for i in range(2):
+                for j in range(2):
+                    if unit_x[0] <= bullet_x[i] <= unit_x[1] and unit_y[0] <= bullet_y[j] <= unit_y[1]:
+                        is_bullet_in_unit = True
+                        return is_bullet_in_unit
+            return is_bullet_in_unit
+
+        def unit_predict (unit, velocity, jump, mticks):
+            # mticks = ticks * game.properties.updates_per_tick
+            unit_predict = Vec2Double(unit.position.x, unit.position.y)
+            speed_fall = - (game.properties.unit_fall_speed / game.properties.ticks_per_second) / game.properties.updates_per_tick
+            speed_h = (velocity / game.properties.ticks_per_second) / game.properties.updates_per_tick
+            jump_time = mticks
+            if jump:
+                speed_v = (game.properties.unit_jump_speed / game.properties.ticks_per_second) / game.properties.updates_per_tick
+            else:
+                speed_v = 0
+            if not jump and unit.jump_state.can_jump and unit.jump_state.max_time < game.properties.unit_jump_time:
+                speed_v = speed_fall
+            if jump and unit.jump_state.can_jump:
+                jump_time = unit.jump_state.max_time * game.properties.ticks_per_second * game.properties.updates_per_tick
+            unit_predict.x = unit.position.x + speed_h*mticks
+            if mticks > jump_time:
+                unit_predict.y = unit.position.y + speed_v*jump_time + speed_fall*(mticks - jump_time)
+            else:
+                unit_predict.y = unit.position.y + speed_v*mticks
+            return unit_predict
+
         def target_enemy_pos(unit, enemy):
             target_enemy_pos = Vec2Double(enemy.x, enemy.y)
             target = False
@@ -103,19 +153,20 @@ class MyStrategy:
                         point.x = tile.x + 0.5
                         point.y = tile.y + 0.5
                         if is_visible(point, enemy_pos):
-                            debug.draw(model.CustomData.Rect(model.Vec2Float(tile.x, tile.y), model.Vec2Float(1, 1), model.ColorFloat(0, 150, 0, 0.3)))
+                            # debug.draw(model.CustomData.Rect(model.Vec2Float(tile.x, tile.y), model.Vec2Float(1, 1), model.ColorFloat(0, 150, 0, 0.3)))
                             if distance_sqr(unit_pos, point) < dist:
                                 target = True
                                 dist = distance_sqr(unit_pos, point)
                                 nearest_pos = Vec2Double(point.x, point.y)
-                        else:
-                            debug.draw(model.CustomData.Rect(model.Vec2Float(tile.x, tile.y), model.Vec2Float(1, 1), model.ColorFloat(150, 0, 0, 0.3)))
+                        # else:
+                            # debug.draw(model.CustomData.Rect(model.Vec2Float(tile.x, tile.y), model.Vec2Float(1, 1), model.ColorFloat(150, 0, 0, 0.3)))
                 if target: break
 
-            debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_pos.x, nearest_pos.y), model.Vec2Float(1, 1), model.ColorFloat(250, 150, 100, 0.9)))
+            # debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_pos.x, nearest_pos.y), model.Vec2Float(1, 1), model.ColorFloat(250, 150, 100, 0.9)))
             return nearest_pos
 
         enemies = [e for e in game.units if e.player_id != unit.player_id]
+        bullets = [b for b in game.bullets if b.player_id != unit.player_id]
         nearest_enemy = min(
             filter(lambda u: u.player_id != unit.player_id, game.units),
             key=lambda u: distance_sqr(u.position, unit.position),
@@ -210,8 +261,8 @@ class MyStrategy:
                 elif unit.health < 80 and nearest_healthpack is not None:
                     target_pos = nearest_healthpack.position
                 elif nearest_enemy is not None:
-                    target_pos = nearest_enemy.position
-                    # target_pos = target_enemy_pos(unit.position, nearest_enemy.position)
+                    # target_pos = nearest_enemy.position
+                    target_pos = target_enemy_pos(unit.position, nearest_enemy.position)
         else:
             if unit.weapon is None and nearest_weapon is not None:
                 target_pos = nearest_weapon.position
@@ -233,6 +284,7 @@ class MyStrategy:
                     target_pos = nearest_healthpack.position
                 elif nearest_enemy is not None:
                     target_pos = nearest_enemy.position
+                    # target_pos = target_enemy_pos(unit.position, nearest_enemy.position)
 
         # Aim
         target_enemy = nearest_enemy
@@ -259,9 +311,9 @@ class MyStrategy:
             legs.y = target_enemy.position.y
             body.x = head.x
             body.y = target_enemy.position.y + 0.5*unit.size.y
-            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(body.x, body.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
-            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(head.x, head.y), 0.02, model.ColorFloat(0, 255, 0, 1)))
-            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(legs.x, legs.y), 0.02, model.ColorFloat(0, 0, 255, 1)))
+            # debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(body.x, body.y), 0.1, model.ColorFloat(255, 0, 0, 1)))
+            # debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(head.x, head.y), 0.02, model.ColorFloat(0, 255, 0, 1)))
+            # debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(legs.x, legs.y), 0.02, model.ColorFloat(0, 0, 255, 1)))
         if abs(delta_x) > 0.5:
             shoot = is_visible(shooting_point, legs)
             if unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
@@ -284,18 +336,18 @@ class MyStrategy:
             aim.x = aim.x + corr.x
             aim.y = aim.y + corr.y
 
-        if shoot:
-            debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(aim.x + shooting_point.x, aim.y + shooting_point.y), 0.3 , model.ColorFloat(255, 0, 255, 1)))
+        # if shoot:
+            # debug.draw(model.CustomData.Line(model.Vec2Float(shooting_point.x,shooting_point.y), model.Vec2Float(aim.x + shooting_point.x, aim.y + shooting_point.y), 0.3 , model.ColorFloat(255, 0, 255, 1)))
             # debug.draw(model.CustomData.Log('DeltaX {}'.format(delta_x)))
             # debug.draw(model.CustomData.Log('DeltaY {}'.format(delta_y)))
-        if unit.weapon is not None:
-            debug.draw(model.CustomData.Log('Magazine {}'.format(unit.weapon.magazine)))
-            debug.draw(model.CustomData.Log('Timer {}'.format(unit.weapon.fire_timer)))
-
-        if nearest_healthpack_onmyside is not None:
-            debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_healthpack_onmyside.position.x, nearest_healthpack_onmyside.position.y), model.Vec2Float(1, 1), model.ColorFloat(125, 0, 125, 0.4)))
-            debug.draw(model.CustomData.Rect(model.Vec2Float(target_pos.x, target_pos.y), model.Vec2Float(1, 1), model.ColorFloat(125, 125, 0, 0.4)))
-        # Jump
+        # if unit.weapon is not None:
+        #     debug.draw(model.CustomData.Log('Magazine {}'.format(unit.weapon.magazine)))
+        #     debug.draw(model.CustomData.Log('Timer {}'.format(unit.weapon.fire_timer)))
+        #
+        # if nearest_healthpack_onmyside is not None:
+        #     debug.draw(model.CustomData.Rect(model.Vec2Float(nearest_healthpack_onmyside.position.x, nearest_healthpack_onmyside.position.y), model.Vec2Float(1, 1), model.ColorFloat(125, 0, 125, 0.4)))
+        #     debug.draw(model.CustomData.Rect(model.Vec2Float(target_pos.x, target_pos.y), model.Vec2Float(1, 1), model.ColorFloat(125, 125, 0, 0.4)))
+        # # Jump
         jump = target_pos.y > (unit.position.y + 1)
         if abs(target_pos.x - unit.position.x)>0.001 and game.level.tiles[int(unit.position.x + 1)][int(unit.position.y)] == model.Tile.WALL:
             jump = True
@@ -307,16 +359,16 @@ class MyStrategy:
         reload = False
         if unit.weapon is not None and target_pos != target_enemy.position and not shoot and unit.weapon.magazine < unit.weapon.params.magazine_size:
             reload = True
-            debug.draw(model.CustomData.Log(format(unit.weapon.params.reload_time)))
+            # debug.draw(model.CustomData.Log(format(unit.weapon.params.reload_time)))
         # velocity
 
-        debug.draw(model.CustomData.Log("Stand = {}".format(unit.stand)))
+        # debug.draw(model.CustomData.Log("Stand = {}".format(unit.stand)))
 
         target = Vec2Double(aim.x + shooting_point.x, aim.y + shooting_point.y)
         if teammate is not None:
             Storage.Am_i_second = not Storage.Am_i_second
             if friendly_fire(shooting_point, teammate.position, aim):
-                debug.draw(model.CustomData.Rect(model.Vec2Float(unit.position.x, unit.position.y), model.Vec2Float(-1, 1), model.ColorFloat(125, 125, 0, 0.4)))
+                # debug.draw(model.CustomData.Rect(model.Vec2Float(unit.position.x, unit.position.y), model.Vec2Float(-1, 1), model.ColorFloat(125, 125, 0, 0.4)))
                 shoot = False
                 jump = True
             if unit.weapon is not None and weapon_type == model.WeaponType.ROCKET_LAUNCHER:
@@ -338,6 +390,48 @@ class MyStrategy:
         #         jump = True
 
         velocity = (target_pos.x - unit.position.x) * game.properties.ticks_per_second
+        if velocity > game.properties.unit_max_horizontal_speed :
+            velocity = game.properties.unit_max_horizontal_speed
+        elif velocity < -game.properties.unit_max_horizontal_speed:
+            velocity = -game.properties.unit_max_horizontal_speed
+        debug.draw(model.CustomData.Log('Velocity {}'.format(velocity)))
+
+        def collision (bullet, unit, velocity, jump, ticks):
+            collision = [False, 0]
+            ticks_pred = ticks
+            mticks_pred = ticks_pred * game.properties.updates_per_tick
+            for mt in range(mticks_pred):
+                bullet_pr_pos = bullet_predict(b, mt)
+                unit_pr_pos = unit_predict(unit, velocity, jump, mt)
+                # debug.draw(model.CustomData.Rect(model.Vec2Float(unit_pr_pos.x - 0.4, unit_pr_pos.y), model.Vec2Float(0.8, 1.8), model.ColorFloat(0, 125, 0, 0.2)))
+                # debug.draw(model.CustomData.Rect(model.Vec2Float(bullet_pr_pos.x -b.size/2, bullet_pr_pos.y - b.size/2), model.Vec2Float(b.size, b.size), model.ColorFloat(0.4, 0, 0, 0.2)))
+                if is_bullet_in_unit(b, bullet_pr_pos, unit_pr_pos):
+                    # debug.draw(model.CustomData.Log('Collision in {} ticks'.format(int(mt))))
+                    collision[0] = True
+                    collision[1] = mt
+                    break
+            return collision
+        depth = 10
+        state = [(copysign(game.properties.unit_max_horizontal_speed, velocity), jump),
+                    (copysign(game.properties.unit_max_horizontal_speed, velocity), not jump),
+                    (velocity, not jump),
+                    (copysign(game.properties.unit_max_horizontal_speed, -velocity), jump),
+                    (-velocity, jump),
+                    (-velocity, not jump),
+                    (copysign(game.properties.unit_max_horizontal_speed, -velocity), not jump)]
+        # print(game.current_tick, unit.jump_state)
+        for b in bullets:
+            # debug.draw(model.CustomData.Log(format(b)))
+            # print(velocity, jump)
+            if collision(b, unit, velocity, jump, depth)[0]:
+                for st in state:
+                    variant = collision(b, unit, st[0], st[1], depth)
+                    # print(game.current_tick, variant)
+                    if not variant[0]:
+                        # print(st)
+                        velocity = st[0]
+                        jump = st[1]
+                        break
 
         return model.UnitAction(
             velocity=velocity,
